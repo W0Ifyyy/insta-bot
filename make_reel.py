@@ -4,10 +4,9 @@ import os
 
 def make_reel(quote_text):
     # Load background image or video
-    if os.path.splitext("background.jpg")[1].lower() in ['.jpg', '.png', '.jpeg']:
-        bg = ImageClip("background.jpg")
-    else:
-        bg = VideoFileClip("background.jpg").subclip(0, 10)
+    # if os.path.splitext("background.jpg")[1].lower() in ['.jpg', '.png', '.jpeg']:
+    #     bg = ImageClip("background.jpg")
+    # else:
 
     # Load and mix voiceover with background music
     voice = AudioSegment.from_file("quote.mp3")
@@ -26,9 +25,44 @@ def make_reel(quote_text):
     final_audio = AudioFileClip("final_audio.mp3")
     print(f"Audio duration: {final_audio.duration}s")  # Debug
 
-    # Resize and duration for background
+    bg = VideoFileClip("bg.mp4").subclip(0, final_audio.duration)
+
+    # Set duration for background
     bg = bg.set_duration(final_audio.duration)
-    bg = bg.resize((1080, 1920))
+    
+    # Resize and crop background to 1080x1920 (portrait orientation)
+    target_width = 1080
+    target_height = 1920
+    
+    # Calculate which dimension to resize to ensure complete filling
+    width_ratio = target_width / bg.size[0]
+    height_ratio = target_height / bg.size[1]
+    resize_ratio = max(width_ratio, height_ratio)
+    
+    # Resize while maintaining aspect ratio
+    new_width = int(bg.size[0] * resize_ratio)
+    new_height = int(bg.size[1] * resize_ratio)
+    bg = bg.resize((new_width, new_height))
+    
+    # Now crop to exact dimensions (centered)
+    x_center = new_width / 2
+    y_center = new_height / 2
+    bg = bg.crop(
+        x_center=x_center,
+        y_center=y_center,
+        width=target_width, 
+        height=target_height
+    )
+
+    # Create shadow text (slightly offset and darker)
+    shadow_clip = TextClip(
+        quote_text,
+        fontsize=70,
+        font="Arial-Bold",
+        color="black",
+        method='caption',
+        size=(1000, None)
+    ).set_position(('center', 'center')).set_duration(final_audio.duration).margin(left=3, top=3, opacity=0)
 
     # Create text overlay
     txt_clip = TextClip(
@@ -38,11 +72,18 @@ def make_reel(quote_text):
         color="white",
         method='caption',
         size=(1000, None)
-    ).set_position('center').set_duration(final_audio.duration)
+    ).set_position(('center', 'center')).set_duration(final_audio.duration)
+
+    # Combine shadow and text into one clip, then center the whole thing
+    text_with_shadow = CompositeVideoClip([shadow_clip, txt_clip], size=(1080, 1920)).set_duration(final_audio.duration)
+
+    # Center text within the full canvas
+    text_with_shadow = text_with_shadow.set_position('center')
+
 
     # Composite video and text, attach audio to final clip
     final = CompositeVideoClip(
-        [bg, txt_clip],
+        [bg, text_with_shadow],
         size=(1080, 1920)
     ).set_audio(final_audio)  # Set audio only once on the final composite
     # Verify audio exists
@@ -52,7 +93,7 @@ def make_reel(quote_text):
     # Export ensuring audio is included
     final.write_videofile(
         "reel.mp4",
-        fps=30,
+        fps=60,
         codec='libx264',
         audio_codec='aac',
         audio=True,

@@ -21,5 +21,3 @@ def generate_caption(quote):
     ]
     )
     return completion.choices[0].message.content
-
-print(generate_caption("The only limit to our realization of tomorrow is our doubts of today. - Franklin D. Roosevelt"))
