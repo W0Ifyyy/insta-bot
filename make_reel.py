@@ -2,15 +2,11 @@ from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVide
 from pydub import AudioSegment
 import os
 
-def make_reel(quote_text):
-    # Load background image or video
-    # if os.path.splitext("background.jpg")[1].lower() in ['.jpg', '.png', '.jpeg']:
-    #     bg = ImageClip("background.jpg")
-    # else:
+def make_reel(quote_text, background="./assets/bgs/bg.mp4", music="./assets/music/music.mp3"):
 
     # Load and mix voiceover with background music
     voice = AudioSegment.from_file("quote.mp3")
-    bgm = AudioSegment.from_file("music.mp3").apply_gain(-10)
+    bgm = AudioSegment.from_file(music).apply_gain(-10)
     combined = bgm.overlay(voice)
 
     # Match combined duration to voice duration
@@ -25,32 +21,39 @@ def make_reel(quote_text):
     final_audio = AudioFileClip("final_audio.mp3")
     print(f"Audio duration: {final_audio.duration}s")  # Debug
 
-    bg = VideoFileClip("bg.mp4").subclip(0, final_audio.duration)
+    if not os.path.exists(background):
+        raise FileNotFoundError(f"Background file not found: {background}")
+
+
+    if os.path.splitext(background)[1].lower() in ['.jpg', '.png', '.jpeg']:
+        bg = ImageClip(background)
+    else:
+        bg = VideoFileClip(background).subclip(0, final_audio.duration)
 
     # Set duration for background
     bg = bg.set_duration(final_audio.duration)
-    
+
     # Resize and crop background to 1080x1920 (portrait orientation)
     target_width = 1080
     target_height = 1920
-    
+
     # Calculate which dimension to resize to ensure complete filling
     width_ratio = target_width / bg.size[0]
     height_ratio = target_height / bg.size[1]
     resize_ratio = max(width_ratio, height_ratio)
-    
+
     # Resize while maintaining aspect ratio
     new_width = int(bg.size[0] * resize_ratio)
     new_height = int(bg.size[1] * resize_ratio)
     bg = bg.resize((new_width, new_height))
-    
+
     # Now crop to exact dimensions (centered)
     x_center = new_width / 2
     y_center = new_height / 2
     bg = bg.crop(
         x_center=x_center,
         y_center=y_center,
-        width=target_width, 
+        width=target_width,
         height=target_height
     )
 
